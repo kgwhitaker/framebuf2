@@ -19,6 +19,7 @@ __version__ = "v209"
 __repo__ = "https://github.com/peter-l5/framebuf2"
 
 import framebuf
+from typing import List
 
 # constants available in MicroPython 1.19.1
 MONO_VLSB = framebuf.MONO_VLSB
@@ -28,6 +29,12 @@ RGB565 = framebuf.RGB565
 GS2_HMSB = framebuf.GS2_HMSB
 GS4_HMSB = framebuf.GS4_HMSB
 GS8 = framebuf.GS8
+
+# Number of pixels per character in the default font size.
+DEF_CHAR_PIX = 8
+
+# Characters that demark a word.
+WORD_DELIM = " -.\t"
 
 
 class FrameBuffer(framebuf.FrameBuffer):
@@ -51,8 +58,8 @@ class FrameBuffer(framebuf.FrameBuffer):
         smallbuffer = bytearray(8)
         letter = framebuf.FrameBuffer(smallbuffer, 8, 8, framebuf.MONO_HMSB)
         r = r % 360 // 90
-        dx = 8 * m if r in (0, 2) else 0
-        dy = 8 * m if r in (1, 3) else 0
+        dx = DEF_CHAR_PIX * m if r in (0, 2) else 0
+        dy = DEF_CHAR_PIX * m if r in (1, 3) else 0
         if r in (2, 3):
             s = self._reverse(s)
         t = r if t is None else t % 360 // 90
@@ -75,6 +82,70 @@ class FrameBuffer(framebuf.FrameBuffer):
                             self.fill_rect(x + p * m, y + q * m, m, m, colour)
             x += dx
             y += dy
+
+
+    def _split_words(self, s, max_line_chars) -> List[str]:
+        words = []
+
+        word = ""
+        for char in s:
+            if char in WORD_DELIM:
+                if len(word) > 0:
+                    words.append(word)
+                    word = ""
+                continue
+            else:
+                word += char
+
+        return words
+
+
+
+    def large_text_wrap(
+        self, s, x, y, multiplier, c: int = 1, r: int = 0, t=None, max_line_pixels=0
+    ):
+        """
+        Text drawing function that supports larger text and wraps the text to the next line at the specified maximum width.  
+        textwrap cannot be used on the Pico due to these open issues:
+            https://github.com/micropython/micropython/issues/9346
+            https://github.com/micropython/micropython-lib/issues/318
+        
+        So, we're just rolling our own for now.
+
+        Arguments:
+        s -- String to display and wrap.
+        x -- x coordinate to start writing the text.
+        y -- y coordinate to start writing the text.
+        multiplier - Factor to increase the default font size (e.g. 2 will double with character size).
+        c -- Color of the text.
+        r -- optional parameter, r is rotation of the text: 0, 90, 180, or 270 degrees
+        t -- optional parameter, t is rotation of each character within the text: 0, 90, 180, or 270 degrees
+        max_line_pixels -- Maximum line size before wrapping text expressed in number of pixels.
+        """
+        if max_line_pixels <= 0:
+            raise ValueError(
+                "line_width_pixels must be a non-zero number reflecting the maximum line width in pixels."
+            )
+
+        # determine how many characters can be written in the line
+        max_chars = max_line_pixels // (DEF_CHAR_PIX * multiplier)
+        if max_chars < 1:
+            raise ValueError(
+                "line_width_pixels must large enough to accommodate at \
+                             least 1 character at the specified character size (multiplier)."
+            )
+        
+        
+        # loop through the string, breaking it into individual lines.
+        # currLine = ""
+        # for char in s:
+        #     currLine += char
+        #     if (currLine * )
+            
+
+
+
+        # lines.append("  ")
 
     def circle(self, x0, y0, radius, c, f: bool = None):
         """
