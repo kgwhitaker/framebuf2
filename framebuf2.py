@@ -87,11 +87,11 @@ class FrameBuffer(framebuf.FrameBuffer):
             x += dx
             y += dy
 
-    def large_text_wrap(
-        self, s, x, y, m, c: int = 1, r: int = 0, t=None, max_line_pixels=0
-    ):
+    def large_text_wrap(self, s, x, y, m, c: int = 1, max_line_pixels=0):
         """
         Text drawing function that supports larger text and wraps the text to the next line at the specified maximum width.
+
+        Rotational parameters (r and t) are not supported.
 
         Arguments:
         s -- String to display and wrap.
@@ -99,8 +99,6 @@ class FrameBuffer(framebuf.FrameBuffer):
         y -- y coordinate to start writing the text.
         m -- Factor to increase the default font size (e.g. 2 will double with character size).
         c -- Color of the text.
-        r -- optional parameter, r is rotation of the text: 0, 90, 180, or 270 degrees
-        t -- optional parameter, t is rotation of each character within the text: 0, 90, 180, or 270 degrees
         max_line_pixels -- Maximum line size before wrapping text expressed in number of pixels.
         """
         if max_line_pixels <= 0:
@@ -115,9 +113,66 @@ class FrameBuffer(framebuf.FrameBuffer):
         curr_y = y
         line_y = self._calc_line_space(m)
         for line in wrapped_lines:
-            print(line)
             if line.strip != "":
-                self.large_text(line, x, curr_y, m, c, r, t)
+                self.large_text(line, x, curr_y, m, c)
+            curr_y += line_y
+
+    def large_text_fit(
+        self, s, x, y, m, max_line_pixels, max_num_lines_pixels, c:int = 0 
+    ):
+        """
+        Draws text that attempts to fit in the specified space.  I will scale the text down by 1 factor to fit as it can.
+
+        Rotational parameters (r and t) are not supported.
+
+        Arguments:
+        s -- String to display and wrap.
+        x -- x coordinate to start writing the text.
+        y -- y coordinate to start writing the text.
+        m -- Preferred factor to increase the default font size.  It will be scaled down 1 factor if the text is too long to fit.
+        max_line_pixels -- Maximum line size before wrapping text expressed in number of pixels.
+        max_num_lines_pixels -- Maximum number of pixels that can be allocated in the vertical (Y) plane.  Translates to number of lines
+                of text.
+        c -- Color of the text.
+
+        Throws a ValueError exception if the string is too long to fit in the window when scaled down to a factor of 1.
+        """
+        if max_line_pixels <= 0:
+            raise ValueError(
+                "line_width_pixels must be a non-zero number reflecting the maximum line width in pixels."
+            )
+        if max_num_lines_pixels <= 0:
+            raise ValueError(
+                "line_width_pixels must be a non-zero number reflecting the maximum line width in pixels."
+            )
+        
+        max_chars = self._calc_line_width(m, max_line_pixels)
+        max_lines = self._calc_max_lines(m, max_num_lines_pixels)
+        print ("max_lines=" + str(max_lines) + " factor = " + str(m))
+
+        wrapper = MicroTextWrapper()
+        wrapped_lines = wrapper.wrap_text(s, max_chars)
+        print("wrapped_lines = " + str(len(wrapped_lines)))
+        print("max_lines = " + str(max_lines))
+        while ((len(wrapped_lines) > max_lines) and (m > 1)):
+            m = m - 1
+            print ("factor is now " + str(m))
+            max_chars = self._calc_line_width(m, max_line_pixels)
+            max_lines = self._calc_max_lines(m, max_num_lines_pixels)
+            wrapped_lines = wrapper.wrap_text(s, max_chars)
+            print("max_lines = " + str(max_lines) + "wrapped_lines = " + str(len(wrapped_lines)))
+
+        if len(wrapped_lines) > max_lines:
+            raise ValueError(
+                "The specified string 's' cannot fit is the specified window of " + 
+                str(max_line_pixels) + "x" + str(max_num_lines_pixels)
+            )
+
+        curr_y = y
+        line_y = self._calc_line_space(m)
+        for line in wrapped_lines:
+            if line.strip != "":
+                self.large_text(line, x, curr_y, m, c)
             curr_y += line_y
 
     def _calc_line_space(self, m) -> int:
@@ -143,6 +198,17 @@ class FrameBuffer(framebuf.FrameBuffer):
                              least 1 character at the specified character size (multiplier)."
             )
         return max_chars
+
+    def _calc_max_lines(self, m, max_num_lines_pixels) -> int:
+        """
+        Determines the maximum number of text lines allowed give the requested font scale factor 'm'
+
+        Arguments:
+        m -- Factor used to increase the default font size.
+        max_line_pixels -- Maximum line size before wrapping text expressed in number of pixels.
+        """
+        max_lines = max_num_lines_pixels // ((DEF_CHAR_PIX + LINE_LEADING_PIX) * m)
+        return max_lines
 
     def circle(self, x0, y0, radius, c, f: bool = None):
         """
