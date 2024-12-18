@@ -1,10 +1,8 @@
-from typing import List
 
 # Characters that demark a word.
 WORD_DELIM = " -.\t!?;:"
 HYPHEN = "-"
 WHITESPACE = " \t"
-
 
 class MicroTextWrapper:
     """
@@ -15,7 +13,7 @@ class MicroTextWrapper:
 
     """
 
-    def wrap_text(self, unwrapped_text: str, max_line_chars:int) -> List[str]:
+    def wrap_text(self, unwrapped_text: str, max_line_chars:int) -> list[str]:
         """
         Takes a unwrapped_text and word wraps it to fit within the specified space.
 
@@ -32,11 +30,20 @@ class MicroTextWrapper:
         more = True
         fragment = unwrapped_text
         while(more):
-            if (len(fragment) <= max_line_chars):
+            newline_idx = self._find_newline(fragment, max_line_chars)
+            if (newline_idx != -1):
+                # Handle embedded line breaks.                            
+                line = fragment[0:newline_idx]
+                wrapped.append(line)
+                fragment = fragment[newline_idx+1:len(fragment)]
+                if (fragment.strip == ""):
+                    more = False
+            elif (len(fragment) <= max_line_chars):
+                # nothing to wrap
                 wrapped.append(fragment)
                 more = False
             elif (fragment[max_line_chars] in WHITESPACE):
-                # we are breaking at whitespace.
+                # we are line wrapping at whitespace.
                 pos = max_line_chars
                 line = fragment[0:pos]
                 wrapped.append(line)
@@ -76,3 +83,14 @@ class MicroTextWrapper:
                 return i
         # if we got this far, a word delimiter was not found, return end of the input string.
         return len(sentence)
+    
+    def _find_newline(self, sentence, max_line_chars) -> int:
+        """
+        returns the position of a newline provided it is within the max length.  returns -1 if not found in that criteria.
+        """
+        i = sentence[0:max_line_chars].find('\r')
+        if (i == -1):
+            i = sentence[0:max_line_chars].find('\n')
+        # print("sentence=" + sentence[0:max_line_chars] + " *newline index = " + str(i))
+        return i
+

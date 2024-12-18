@@ -103,4 +103,47 @@ class MicroTextWrapperTestSuite(unittest.TestCase):
         self.assertEqual(lines[6],"cannot.")
         self.assertEqual(lines[7],"pronounce")
 
+    def test_word_wrap_blank_lines(self):
+        """
+        Validates that blank lines in the string are respected in the wrapped output.
+        """
+        test_string = """Captain's log, stardate unknown... I've managed to dig up a purr-fectly dreadful joke from Pirate, the feline humorist.
+
+Why did the cat join a band?
+
+Because it wanted to be the purr-cussionist!
+
+I hope that one struck a chord with you! (Sorry, had to - Pirate's jokes can be a bit of a cat-astrophe...)"""
+        line_len = 50
+        wrapper = micro_text_wrapper.MicroTextWrapper()
+        lines = wrapper.wrap_text(test_string, line_len)
+        self.assertEqual(len(lines), 11)
+        self.assertEqual(lines[0],"Captain's log, stardate unknown... I've managed to")
+        self.assertEqual(lines[1],"dig up a purr-fectly dreadful joke from Pirate,")
+        self.assertEqual(lines[2],"the feline humorist.")
+        self.assertEqual(lines[3],"")
+        self.assertEqual(lines[4],"Why did the cat join a band?")
+        self.assertEqual(lines[5],"")
+        self.assertEqual(lines[6],"Because it wanted to be the purr-cussionist!")
+        self.assertEqual(lines[7],"")
+        self.assertEqual(lines[8],"I hope that one struck a chord with you! (Sorry,")
+        self.assertEqual(lines[9],"had to - Pirate's jokes can be a bit of a cat-")
+        self.assertEqual(lines[10],"astrophe...)")
+
+
+
+
+
+
+
+
+        # for line in lines:
+            # test_str = str(len(line)) + "=" + line
+            # print(test_str)
+            # if "\r" in test_str: print("*CR*")
+            # if "\n" in test_str: print("*LF*" + str(test_str.find('\n')))
+
+
+
+
     

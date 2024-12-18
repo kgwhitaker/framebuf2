@@ -15,11 +15,11 @@ Author: Tony DiCola (original GFX author Phil Burgess)
 License: MIT License (https://opensource.org/licenses/MIT)
 """
 
-__version__ = "v209"
+__version__ = "v210"
 __repo__ = "https://github.com/peter-l5/framebuf2"
 
 import framebuf
-from typing import List
+from framebuf2.micro_text_wrapper import MicroTextWrapper
 
 # constants available in MicroPython 1.19.1
 MONO_VLSB = framebuf.MONO_VLSB
@@ -33,12 +33,16 @@ GS8 = framebuf.GS8
 # Number of pixels per character in the default font size.
 DEF_CHAR_PIX = 8
 
+# Number of pixels between each line of text.  Line height of text
+# is calculated based on the DEF_CHAR_PIX value.
+LINE_LEADING_PIX = 4
+
 # Characters that demark a word.
 WORD_DELIM = " -.\t"
 
 
 class FrameBuffer(framebuf.FrameBuffer):
-    def _reverse(self, s: string) -> string:
+    def _reverse(self, s: str) -> str:
         t = ""
         for i in range(0, len(s)):
             t += s[len(s) - 1 - i]
@@ -83,40 +87,17 @@ class FrameBuffer(framebuf.FrameBuffer):
             x += dx
             y += dy
 
-
-    def _split_words(self, s, max_line_chars) -> List[str]:
-        words = []
-
-        word = ""
-        for char in s:
-            if char in WORD_DELIM:
-                if len(word) > 0:
-                    words.append(word)
-                    word = ""
-                continue
-            else:
-                word += char
-
-        return words
-
-
-
     def large_text_wrap(
-        self, s, x, y, multiplier, c: int = 1, r: int = 0, t=None, max_line_pixels=0
+        self, s, x, y, m, c: int = 1, r: int = 0, t=None, max_line_pixels=0
     ):
         """
-        Text drawing function that supports larger text and wraps the text to the next line at the specified maximum width.  
-        textwrap cannot be used on the Pico due to these open issues:
-            https://github.com/micropython/micropython/issues/9346
-            https://github.com/micropython/micropython-lib/issues/318
-        
-        So, we're just rolling our own for now.
+        Text drawing function that supports larger text and wraps the text to the next line at the specified maximum width.
 
         Arguments:
         s -- String to display and wrap.
         x -- x coordinate to start writing the text.
         y -- y coordinate to start writing the text.
-        multiplier - Factor to increase the default font size (e.g. 2 will double with character size).
+        m -- Factor to increase the default font size (e.g. 2 will double with character size).
         c -- Color of the text.
         r -- optional parameter, r is rotation of the text: 0, 90, 180, or 270 degrees
         t -- optional parameter, t is rotation of each character within the text: 0, 90, 180, or 270 degrees
@@ -127,25 +108,41 @@ class FrameBuffer(framebuf.FrameBuffer):
                 "line_width_pixels must be a non-zero number reflecting the maximum line width in pixels."
             )
 
-        # determine how many characters can be written in the line
-        max_chars = max_line_pixels // (DEF_CHAR_PIX * multiplier)
+        max_chars = self._calc_line_width(m, max_line_pixels)
+
+        wrapper = MicroTextWrapper()
+        wrapped_lines = wrapper.wrap_text(s, max_chars)
+        curr_y = y
+        line_y = self._calc_line_space(m)
+        for line in wrapped_lines:
+            print(line)
+            if line.strip != "":
+                self.large_text(line, x, curr_y, m, c, r, t)
+            curr_y += line_y
+
+    def _calc_line_space(self, m) -> int:
+        """
+        Determines the number of pixels to allocate to a single line of text.
+        """
+        line_pix = (DEF_CHAR_PIX * m) + LINE_LEADING_PIX
+        return line_pix
+
+    def _calc_line_width(self, m, max_line_pixels) -> int:
+        """
+        Determine how many characters can be written in a single line of text given the specified number pixels.
+
+        Arguments:
+        m -- Factor used to increase the default font size.
+        max_line_pixels -- Maximum line size before wrapping text expressed in number of pixels.
+        """
+
+        max_chars = max_line_pixels // (DEF_CHAR_PIX * m)
         if max_chars < 1:
             raise ValueError(
                 "line_width_pixels must large enough to accommodate at \
                              least 1 character at the specified character size (multiplier)."
             )
-        
-        
-        # loop through the string, breaking it into individual lines.
-        # currLine = ""
-        # for char in s:
-        #     currLine += char
-        #     if (currLine * )
-            
-
-
-
-        # lines.append("  ")
+        return max_chars
 
     def circle(self, x0, y0, radius, c, f: bool = None):
         """
